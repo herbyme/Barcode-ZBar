@@ -20,4 +20,8 @@ t/ZBar.t
 t/pod.t
 t/pod-coverage.t
 inc/Devel/CheckLib.pm
+examples/paginate.pl
+examples/processor.pl
+examples/read_one.pl
+examples/scan_image.pl
 META.yml                                 Module meta-data (added by MakeMaker)

@@ -1,22 +1,10 @@
---- #YAML:1.0
-name:               Barcode-ZBar
-version:            0.02
-abstract:           Perl interface to the ZBar Barcode Reader
-author:
-    - Jeff Brown <spadix@users.sourceforge.net>
-license:            lgpl
-distribution_type:  module
-configure_requires:
-    ExtUtils::MakeMaker:  0
-build_requires:
-    ExtUtils::MakeMaker:  0
-    Test::More:           0
-requires:  {}
-no_index:
-    directory:
-        - t
-        - inc
-generated_by:       ExtUtils::MakeMaker version 6.50
-meta-spec:
-    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
-    version:  1.4
+# http://module-build.sourceforge.net/META-spec.html
+#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
+name:         Barcode-ZBar
+version:      0.04
+version_from: ZBar.pm
+installdirs:  site
+requires:
+
+distribution_type: module
+generated_by: ExtUtils::MakeMaker version 6.30

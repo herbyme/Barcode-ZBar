@@ -3,7 +3,7 @@
 
 use warnings;
 use strict;
-use Test::More tests => 19;
+use Test::More tests => 20;
 
 #########################
 
@@ -63,8 +63,12 @@ $proc->set_data_handler(sub {
 
     #########################
 
+    ok($sym->get_quality() > 0, 'quality');
+
+    #########################
+
     my @loc = $sym->get_loc();
-    is(scalar(@loc), 4, 'location size');
+    ok(scalar(@loc) >= 4, 'location size');
 
     # structure checked by Image.t
 
@@ -73,7 +77,7 @@ $proc->set_data_handler(sub {
 
 #########################
 
-$proc->init($ENV{VIDEO_DEVICE} || '/dev/video0');
+$proc->init($ENV{VIDEO_DEVICE});
 ok(!$proc->is_visible(), 'initial visibility');
 
 #########################
@@ -90,7 +94,7 @@ ok($proc->user_wait(1.1) >= 0, 'wait w/timeout');
 SKIP: {
     # FIXME factor out image read utility
     eval { require Image::Magick };
-    skip "Image::Magick not installed", 8 if $@;
+    skip "Image::Magick not installed", 11 if $@;
     my $im = Image::Magick->new();
     my $err = $im->Read('t/barcode.png');
     die($err) if($err);

@@ -3,7 +3,7 @@
 
 use warnings;
 use strict;
-use Test::More tests => 16;
+use Test::More tests => 22;
 
 #########################
 
@@ -51,7 +51,7 @@ is_deeply([$image->get_size()], [114, 80], 'size accessors');
 # FIXME avoid skipping these (eg embed image vs ImageMagick)
 SKIP: {
     eval { require Image::Magick };
-    skip "Image::Magick not installed", 8 if $@;
+    skip "Image::Magick not installed", 13 if $@;
 
     my $im = Image::Magick->new();
     my $err = $im->Read('t/barcode.png');
@@ -67,6 +67,19 @@ SKIP: {
         $image->set_data($data);
     }
 
+    $image = $image->convert('Y800');
+    isa_ok($image, 'Barcode::ZBar::Image', 'image');
+
+    #########################
+
+    is($image->get_format(), 'Y800', 'converted image format');
+
+    #########################
+
+    is_deeply([$image->get_size()], [114, 80], 'converted image size');
+
+    #########################
+
     is($scanner->scan_image($image), 1, 'scan result');
 
     #########################
@@ -81,7 +94,7 @@ SKIP: {
 
     #########################
 
-    can_ok($sym, qw(get_type get_data get_count get_loc));
+    can_ok($sym, qw(get_type get_data get_quality get_count get_loc));
 
     #########################
 
@@ -93,8 +106,12 @@ SKIP: {
 
     #########################
 
+    ok($sym->get_quality() > 0, 'quality');
+
+    #########################
+
     my @loc = $sym->get_loc();
-    is(scalar(@loc), 4, 'location size');
+    ok(scalar(@loc) >= 4, 'location size');
 
     #########################
 
@@ -115,6 +132,19 @@ SKIP: {
       diag($failure);
 
     #########################
+
+    my @comps = $sym->get_components();
+    is(scalar(@comps), 0, 'components size');
+
+    #########################
 }
+
+$scanner->recycle_image($image);
+
+my @symbols = $image->get_symbols();
+is(scalar(@symbols), 0, 'recycled result size');
+
+#########################
+
 
 # FIXME more image tests

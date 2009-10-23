@@ -56,12 +56,12 @@ static AV *LOOKUP_zbar_config_t = NULL;
 
 #define CONSTANT(typ, prefix, sym, name)                \
     do {                                                \
-        SV *c = newSViv(ZBAR_ ## prefix ## sym);       \
+        SV *c = newSViv(ZBAR_ ## prefix ## sym);        \
         sv_setpv(c, name);                              \
         SvIOK_on(c);                                    \
         newCONSTSUB(stash, #sym, c);                    \
-        av_store(LOOKUP_zbar_ ## typ ## _t,            \
-                 ZBAR_ ## prefix ## sym,               \
+        av_store(LOOKUP_zbar_ ## typ ## _t,             \
+                 ZBAR_ ## prefix ## sym,                \
                  SvREFCNT_inc(c));                      \
     } while(0)
 
@@ -81,6 +81,17 @@ static inline void check_error (int rc, void *obj)
         croak(NULL);
     }
 }
+
+#define PUSH_SYMS(x)                                                    \
+    do {                                                                \
+        const zbar_symbol_t *sym = (const zbar_symbol_t*)(x);           \
+        for(; sym; sym = zbar_symbol_next(sym)) {                       \
+            zbar_symbol_t *s = (zbar_symbol_t*)sym;                     \
+            zbar_symbol_ref(s, 1);                                      \
+            XPUSHs(sv_setref_pv(sv_newmortal(), "Barcode::ZBar::Symbol", \
+                                (void*)sym));                           \
+        }                                                               \
+    } while(0);
 
 static void image_cleanup_handler (zbar_image_t *image)
 {
@@ -233,6 +244,7 @@ BOOT:
         CONSTANT(error, ERR_, XDISPLAY, "X11 display error");
         CONSTANT(error, ERR_, XPROTO, "X11 protocol error");
         CONSTANT(error, ERR_, CLOSED, "output window is closed");
+        CONSTANT(error, ERR_, WINAPI, "windows system error");
     }
 
 zbar_error_t
@@ -265,6 +277,7 @@ BOOT:
         CONSTANT(config, CFG_, ASCII, "ascii");
         CONSTANT(config, CFG_, MIN_LEN, "min-length");
         CONSTANT(config, CFG_, MAX_LEN, "max-length");
+        CONSTANT(config, CFG_, POSITION, "position");
         CONSTANT(config, CFG_, X_DENSITY, "x-density");
         CONSTANT(config, CFG_, Y_DENSITY, "y-density");
     }
@@ -288,19 +301,35 @@ BOOT:
         CONSTANT(symbol_type, , I25, zbar_get_symbol_name(ZBAR_I25));
         CONSTANT(symbol_type, , CODE39, zbar_get_symbol_name(ZBAR_CODE39));
         CONSTANT(symbol_type, , PDF417, zbar_get_symbol_name(ZBAR_PDF417));
+        CONSTANT(symbol_type, , QRCODE, zbar_get_symbol_name(ZBAR_QRCODE));
         CONSTANT(symbol_type, , CODE128, zbar_get_symbol_name(ZBAR_CODE128));
     }
+
+void
+DESTROY(symbol)
+        Barcode::ZBar::Symbol symbol
+    CODE:
+        zbar_symbol_ref(symbol, -1);
 
 zbar_symbol_type_t
 zbar_symbol_get_type(symbol)
 	Barcode::ZBar::Symbol symbol
 
-const char *
+SV *
 zbar_symbol_get_data(symbol)
 	Barcode::ZBar::Symbol symbol
+    CODE:
+	RETVAL = newSVpvn(zbar_symbol_get_data(symbol),
+                          zbar_symbol_get_data_length(symbol));
+    OUTPUT:
+        RETVAL
 
 int
 zbar_symbol_get_count(symbol)
+	Barcode::ZBar::Symbol symbol
+
+int
+zbar_symbol_get_quality(symbol)
 	Barcode::ZBar::Symbol symbol
 
 SV *
@@ -317,6 +346,12 @@ zbar_symbol_get_loc(symbol)
             av_push(pt, newSVuv(zbar_symbol_get_loc_x(symbol, i)));
             av_push(pt, newSVuv(zbar_symbol_get_loc_y(symbol, i)));
         }
+
+SV *
+get_components(symbol)
+        Barcode::ZBar::Symbol	symbol
+    PPCODE:
+        PUSH_SYMS(zbar_symbol_first_component(symbol));
 
 
 MODULE = Barcode::ZBar	PACKAGE = Barcode::ZBar::Image	PREFIX = zbar_image_
@@ -375,13 +410,8 @@ zbar_image_get_data(image)
 SV *
 get_symbols(image)
         Barcode::ZBar::Image	image
-    PREINIT:
-        const zbar_symbol_t *sym;
     PPCODE:
-	sym = zbar_image_first_symbol(image);
-	for(; sym; sym = zbar_symbol_next(sym))
-            XPUSHs(sv_setref_pv(sv_newmortal(), "Barcode::ZBar::Symbol",
-                   (void*)sym));
+        PUSH_SYMS(zbar_image_first_symbol(image));
 
 void
 zbar_image_set_format(image, format)
@@ -444,7 +474,7 @@ DESTROY(processor)
         zbar_processor_destroy(processor);
 
 void
-zbar_processor_init(processor, video_device="/dev/video0", enable_display=1)
+zbar_processor_init(processor, video_device="", enable_display=1)
         Barcode::ZBar::Processor	processor
         const char *	video_device
 	bool	enable_display
@@ -506,6 +536,16 @@ zbar_processor_set_active(processor, active=1)
     CODE:
 	check_error(zbar_processor_set_active(processor, active),
                     processor);
+
+SV *
+get_results(processor)
+        Barcode::ZBar::Processor	processor
+    PREINIT:
+        const zbar_symbol_set_t	*syms;
+    PPCODE:
+        syms = zbar_processor_get_results(processor);
+        PUSH_SYMS(zbar_symbol_set_first_symbol(syms));
+        zbar_symbol_set_ref(syms, -1);
 
 int
 zbar_processor_user_wait(processor, timeout=-1)
@@ -585,6 +625,20 @@ zbar_image_scanner_enable_cache(scanner, enable)
         Barcode::ZBar::ImageScanner	scanner
 	int	enable
 
+void
+zbar_image_scanner_recycle_image(scanner, image)
+        Barcode::ZBar::ImageScanner	scanner
+        Barcode::ZBar::Image	image
+
+SV *
+get_results(scanner)
+        Barcode::ZBar::ImageScanner	scanner
+    PREINIT:
+        const zbar_symbol_set_t	*syms;
+    PPCODE:
+        syms = zbar_image_scanner_get_results(scanner);
+        PUSH_SYMS(zbar_symbol_set_first_symbol(syms));
+
 int
 scan_image(scanner, image)
         Barcode::ZBar::ImageScanner	scanner
@@ -645,9 +699,14 @@ zbar_color_t
 zbar_decoder_get_color(decoder)
 	Barcode::ZBar::Decoder	decoder
 
-const char *
+SV *
 zbar_decoder_get_data(decoder)
 	Barcode::ZBar::Decoder	decoder
+    CODE:
+	RETVAL = newSVpvn(zbar_decoder_get_data(decoder),
+                          zbar_decoder_get_data_length(decoder));
+    OUTPUT:
+        RETVAL
 
 zbar_symbol_type_t
 zbar_decoder_get_type(decoder)

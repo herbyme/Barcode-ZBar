@@ -58,11 +58,24 @@ The type of bar code "symbology" from which the data was decoded.
 The decoded data string.  Note that some symbologies can encode binary
 data.
 
+=item get_quality()
+
+Confidence metric.  An unscaled integer value that indicates something
+(intentionally unspecified) about the reliability of this result
+relative to another.  Larger values are better than smaller values,
+where "large" and "small" are application dependent.  Expect this
+definition to become more specific as the metric is enhanced.
+
 =item get_count()
 
 Current cache count of the symbol.  This integer value provides
 inter-scan reliability and redundancy information if enabled at the
 Barcode::ZBar::ImageScanner.
+
+=item get_components()
+
+Components of a composite result.  This yields an array of physical
+component symbols that were combined to form a composite result.
 
 =over 2
 
@@ -110,6 +123,10 @@ Bar code type "symbology" constants:
 =item CODE39
 
 =item CODE128
+
+=item QRCODE
+
+=item PDF417
 
 =back
 
